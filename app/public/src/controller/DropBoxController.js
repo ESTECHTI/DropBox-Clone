@@ -7,8 +7,10 @@ class DropBoxController {
     this.progressBarEl = this.snackModalEl.querySelector('.mc-progress-bar-fg')
     this.namefileEl = this.snackModalEl.querySelector('.filename')
     this.timeleftEl = this.snackModalEl.querySelector('.timeleft')
+    this.listFilesEl = document.querySelector('#list-of-files-and-directories')
     
     this.connectFirebase()
+    this.readFiles()
     this.initEvents()
   }
   
@@ -153,7 +155,6 @@ class DropBoxController {
         break;
         
       case 'audio/mp3':
-      case 'audio/ogg':
         return `
           <li>
             <svg width="160" height="160" viewBox="0 0 160 160" class="mc-icon-template-content tile__preview tile__preview--icon">
@@ -174,9 +175,9 @@ class DropBoxController {
                 </g>
             </svg>
             <div class="name text-center">Music</div>
-        </li>
+          </li>
         `
-        break
+        break;
         
       case 'application/pdf':
         return `
@@ -319,13 +320,71 @@ class DropBoxController {
     }
   }
   
-  getFileView(file) {
-    return `
-      <li>
+  getFileView(file, key) {
+    let li = document.createElement('li')
+    
+    li.dataset.key = key
+    
+    li.innerHTML = `
           ${this.getFileIconView(file)}
           <div class="name text-center">${file.name}</div>
-      </li>
     `
+    
+    this.initEventsLi(li)
+    
+    return li
+  }
+  
+  readFiles() {
+    this.getFirebaseRef().on('value', snapshot => {
+      
+      this.listFilesEl.innerHTML = ''
+      
+      snapshot.forEach(snapshotItem => {
+        let key = snapshotItem.key;
+        let data = snapshotItem.val();
+        
+        this.listFilesEl.appendChild(this.getFileView(data, key))
+      })
+    })
+  }
+  
+  initEventsLi(li) {
+    li.addEventListener('click', e => {
+      
+      if (e.shiftKey) {
+        let firstLi = this.listFilesEl.querySelector('.selected')
+        
+        let indexStart;
+        let indexEnd;
+        let lis = li.parentElement.childNodes
+        
+        if(firstLi) {
+          lis.forEach((el, index) => {
+            if (firstLi === el) indexStart = index
+            if (li === el) indexEnd = index
+          })
+          
+          let index = [indexStart, indexEnd].sort()
+          
+          lis.forEach((el, i) => {
+            if (i >= index[0] && i <= index[1]) {
+              el.classList.add('selected')
+            }
+          })
+          
+          return true;
+        }
+      }
+      
+      if (!e.ctrlKey) {
+        this.listFilesEl.querySelectorAll('li.selected').forEach(el => {
+          el.classList.remove('selected')
+        })
+      }
+      
+      li.classList.toggle('selected')
+    })
   }
   
 }
